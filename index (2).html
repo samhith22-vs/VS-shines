@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>VS Shines — Jewellery Store</title>
+  <meta name="description" content="VS Shines — Demo jewellery e-commerce store (static HTML + JS)" />
+  <style>
+    :root{--accent:#b8860b;--bg:#fffaf6;--card:#fff}
+    *{box-sizing:border-box}
+    body{font-family:Inter, system-ui, Arial; margin:0; background:var(--bg); color:#2b2b2b}
+    header{background:var(--card);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 6px 18px rgba(0,0,0,.04)}
+    .brand{font-weight:800;letter-spacing:1px;color:var(--accent);font-size:18px}
+    main{max-width:1100px;margin:28px auto;padding:0 20px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
+    .product{background:var(--card);padding:14px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.04);display:flex;flex-direction:column}
+    .product img{width:100%;height:180px;object-fit:cover;border-radius:8px}
+    .product h3{margin:10px 0 6px;font-size:16px}
+    .price{font-weight:700;margin-bottom:8px;color:#5b3b00}
+    .btn{display:inline-block;padding:8px 10px;border-radius:8px;background:var(--accent);color:white;text-decoration:none;cursor:pointer;border:none}
+    .cart-btn{background:#8b5e34}
+    .topbar{display:flex;gap:12px;align-items:center}
+    .muted{color:#6b6b6b;font-size:13px}
+    .cart-icon{position:relative;cursor:pointer;font-size:20px}
+    .badge{position:absolute;right:-8px;top:-10px;background:#ef4444;color:white;border-radius:50%;padding:3px 7px;font-size:12px}
+    /* Cart drawer */
+    .drawer{position:fixed;right:20px;top:90px;width:380px;max-width:95vw;background:var(--card);box-shadow:0 12px 32px rgba(0,0,0,.12);border-radius:12px;padding:12px;transform:translateX(120%);transition:transform .22s ease-in-out;z-index:60}
+    .drawer.open{transform:translateX(0)}
+    .cart-item{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #f0e9e0}
+    .cart-item img{width:64px;height:56px;object-fit:cover;border-radius:6px}
+    .qty{display:flex;gap:6px;align-items:center}
+    input[type=number]{width:56px;padding:6px;border-radius:6px;border:1px solid #e8dfd0}
+    footer{margin:28px 0 80px;text-align:center;color:#6b6b6b}
+    /* Checkout modal */
+    .modal{position:fixed;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);z-index:80;opacity:0;pointer-events:none;transition:opacity .18s}
+    .modal.open{opacity:1;pointer-events:auto}
+    .modal-card{background:var(--card);padding:18px;border-radius:12px;max-width:560px;width:95%}
+    label{display:block;font-size:13px;margin-top:8px}
+    input[type=text], textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #eee;margin-top:6px}
+    .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+    @media (max-width:720px){ .drawer{right:10px;top:72px;width:92vw} header{padding:12px} }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">VS Shines</div>
+    <div class="topbar">
+      <div class="muted">Authentic Jewellery — Demo Store</div>
+      <div class="cart-icon" id="openCart" title="Open cart">
+        🛍️
+        <span id="cartCount" class="badge" style="display:none">0</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>Featured Jewellery</h2>
+      <p class="muted">Fine rings, necklaces, earrings and bracelets — handcrafted look (demo images).</p>
+      <div class="grid" id="productGrid"></div>
+    </section>
+
+    <section style="margin-top:18px">
+      <div style="display:flex;gap:12px;align-items:center">
+        <h2 style="margin:0">How it works</h2>
+        <div class="muted">Add items → Open cart → Checkout (mock or integrate real gateway)</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Cart drawer -->
+  <aside class="drawer" id="cartDrawer" aria-hidden="true">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <strong>Your cart</strong>
+      <div style="display:flex;gap:8px">
+        <button class="btn" id="clearCart">Clear</button>
+        <button class="btn cart-btn" id="checkoutBtn">Checkout</button>
+      </div>
+    </div>
+
+    <div id="cartItems" style="margin-top:12px;max-height:380px;overflow:auto"></div>
+
+    <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
+      <div class="muted">Total:</div>
+      <div style="font-weight:800;color:#3b2b00" id="cartTotal">₹0</div>
+    </div>
+  </aside>
+
+  <!-- Checkout modal -->
+  <div class="modal" id="checkoutModal" aria-hidden="true">
+    <div class="modal-card">
+      <h3 style="margin-top:0">Checkout — VS Shines</h3>
+      <form id="checkoutForm">
+        <label>Name <input type="text" id="custName" required placeholder="Your name"></label>
+        <label>Phone / Email <input type="text" id="custContact" required placeholder="Mobile or email"></label>
+        <label>Address <textarea id="custAddress" rows="3" required placeholder="Shipping address"></textarea></label>
+        <label>Payment method
+          <select id="payMethod" required>
+            <option value="cod">Cash on Delivery</option>
+            <option value="mock">Mock Online Payment</option>
+          </select>
+        </label>
+
+        <div class="actions">
+          <button type="button" class="btn" id="closeCheckout">Cancel</button>
+          <button type="submit" class="btn cart-btn">Place Order</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <footer>VS Shines — Demo jewellery store · Made with ❤️</footer>
+
+  <script>
+    // --- Jewellery product catalogue (edit names/prices/images) ---
+    const PRODUCTS = [
+      { id: 'r1', title: 'Golden Solitaire Ring', price: 2599, img: 'https://images.unsplash.com/photo-1530692555431-9f9b9f9a4b2a?q=80&w=1200&auto=format&fit=crop' },
+      { id: 'n1', title: 'Pearl Pendant Necklace', price: 4199, img: 'https://images.unsplash.com/photo-1522337660859-02fbefca4702?q=80&w=1200&auto=format&fit=crop' },
+      { id: 'e1', title: 'Elegant Stud Earrings', price: 1799, img: 'https://images.unsplash.com/photo-1548579793-6d8e7f8e9d5b?q=80&w=1200&auto=format&fit=crop' },
+      { id: 'b1', title: 'Classic Chain Bracelet', price: 1299, img: 'https://images.unsplash.com/photo-1549880338-65ddcdfd017b?q=80&w=1200&auto=format&fit=crop' },
+      { id: 'r2', title: 'Rose Gold Ring', price: 3499, img: 'https://images.unsplash.com/photo-1519741491309-522e5d0b6f6a?q=80&w=1200&auto=format&fit=crop' },
+      { id: 'n2', title: 'Layered Pendant Set', price: 4999, img: 'https://images.unsplash.com/photo-1520975917382-5c7d8a2b1b2c?q=80&w=1200&auto=format&fit=crop' }
+    ];
+
+    // --- Utilities ---
+    const $ = id => document.getElementById(id);
+    function formatINR(n){ return '₹' + Number(n).toLocaleString('en-IN'); }
+
+    // --- Cart logic stored in localStorage ---
+    const CART_KEY = 'vs_shines_cart_v1';
+    let cart = JSON.parse(localStorage.getItem(CART_KEY) || '{}'); // {productId: qty}
+
+    function saveCart(){ localStorage.setItem(CART_KEY, JSON.stringify(cart)); updateCartUI(); }
+
+    // Render products
+    const grid = $('productGrid');
+    function renderProducts(){
+      grid.innerHTML = '';
+      for(const p of PRODUCTS){
+        const el = document.createElement('div');
+        el.className = 'product';
+        el.innerHTML = `
+          <img src="${p.img}" alt="${p.title}">
+          <h3>${p.title}</h3>
+          <div class="price">${formatINR(p.price)}</div>
+          <div style="margin-top:auto;display:flex;gap:8px;align-items:center">
+            <button class="btn" data-buy="${p.id}">Add to cart</button>
+            <div class="muted">SKU: ${p.id}</div>
+          </div>
+        `;
+        grid.appendChild(el);
+      }
+    }
+
+    // Cart UI
+    const drawer = $('cartDrawer');
+    const cartItemsWrap = $('cartItems');
+    const cartCountBadge = $('cartCount');
+    const cartTotalEl = $('cartTotal');
+
+    function updateCartUI(){
+      // count
+      const keys = Object.keys(cart);
+      const totalCount = keys.reduce((s,k)=>s+cart[k],0);
+      if(totalCount>0){ cartCountBadge.style.display='inline-block'; cartCountBadge.textContent = totalCount; } else { cartCountBadge.style.display='none'; }
+
+      // items
+      cartItemsWrap.innerHTML = '';
+      let total = 0;
+      for(const id of keys){
+        const qty = cart[id];
+        const prod = PRODUCTS.find(p=>p.id===id);
+        if(!prod) continue;
+        const subtotal = prod.price * qty; total += subtotal;
+
+        const item = document.createElement('div');
+        item.className = 'cart-item';
+        item.innerHTML = `
+          <img src="${prod.img}" alt="${prod.title}">
+          <div style="flex:1">
+            <div style="font-weight:700">${prod.title}</div>
+            <div class="muted">${formatINR(prod.price)} × ${qty} = <strong>${formatINR(subtotal)}</strong></div>
+          </div>
+          <div style="text-align:right">
+            <div class="qty">
+              <button class="btn" data-dec="${id}">−</button>
+              <input type="number" min="1" value="${qty}" data-qty="${id}">
+              <button class="btn" data-inc="${id}">＋</button>
+            </div>
+            <div style="margin-top:6px">
+              <button class="btn" data-rem="${id}" style="background:#ef4444">Remove</button>
+            </div>
+          </div>
+        `;
+        cartItemsWrap.appendChild(item);
+      }
+      cartTotalEl.textContent = formatINR(total);
+      // attach listeners for inc/dec/qty/rem
+      cartItemsWrap.querySelectorAll('[data-inc]').forEach(b=>b.onclick = () => { const id=b.getAttribute('data-inc'); cart[id] = (cart[id]||0)+1; saveCart(); });
+      cartItemsWrap.querySelectorAll('[data-dec]').forEach(b=>b.onclick = () => { const id=b.getAttribute('data-dec'); if(cart[id]>1){ cart[id]--; } else { delete cart[id]; } saveCart(); });
+      cartItemsWrap.querySelectorAll('[data-rem]').forEach(b=>b.onclick = () => { const id=b.getAttribute('data-rem'); delete cart[id]; saveCart(); });
+      cartItemsWrap.querySelectorAll('input[type=number][data-qty]').forEach(inp=> {
+        inp.onchange = () => {
+          const id = inp.getAttribute('data-qty'), v = Math.max(1,parseInt(inp.value)||1);
+          cart[id] = v; saveCart();
+        }
+      });
+    }
+
+    // Add to cart buttons
+    document.addEventListener('click', e => {
+      const buy = e.target.getAttribute && e.target.getAttribute('data-buy');
+      if(buy){ cart[buy] = (cart[buy]||0) + 1; saveCart(); animateAdd(e.target); return; }
+    });
+
+    function animateAdd(btn){
+      btn.textContent = 'Added ✓';
+      btn.disabled = true;
+      setTimeout(()=>{ btn.textContent = 'Add to cart'; btn.disabled = false; },700);
+    }
+
+    // Open/close cart
+    $('openCart').onclick = () => { drawer.classList.toggle('open'); };
+    // Clear & Checkout
+    $('clearCart').onclick = () => { if(confirm('Clear cart?')){ cart = {}; saveCart(); } };
+    $('checkoutBtn').onclick = () => {
+      if(Object.keys(cart).length===0){ alert('Cart is empty. Add products first.'); return; }
+      $('checkoutModal').classList.add('open');
+    };
+
+    // Google Apps Script Web App URL (deployed)
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbywH-8UpokUCaTO0sPEwZliynH5HMW-L9tL2kfcSbmr3lInxxSFAomJZqCiC5saTLY_/exec";
+
+    async function sendOrderToSheet(order){
+      try{
+        const res = await fetch(GAS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order })
+        });
+        const data = await res.json();
+        console.log('Sheet response', data);
+        return data;
+      }catch(err){
+        console.error('Failed sending to sheet', err);
+        return null;
+      }
+    }
+
+    // Checkout modal actions
+    $('closeCheckout').onclick = () => $('checkoutModal').classList.remove('open');
+
+    // Handle checkout submit (mock)
+    $('checkoutForm').onsubmit = async function(e){
+      e.preventDefault();
+      const name = $('custName').value.trim();
+      const contact = $('custContact').value.trim();
+      const addr = $('custAddress').value.trim();
+      const pay = $('payMethod').value;
+      if(!name || !contact || !addr){ alert('Please fill all fields.'); return; }
+
+      // Build order object
+      const order = {
+        id: 'VS' + Date.now(),
+        createdAt: new Date().toISOString(),
+        customer: { name, contact, addr, pay },
+        items: [],
+        total: 0
+      };
+      for(const id in cart){
+        const p = PRODUCTS.find(x=>x.id===id);
+        if(!p) continue;
+        order.items.push({ id: p.id, title: p.title, price: p.price, qty: cart[id] });
+        order.total += p.price * cart[id];
+      }
+
+      // Mock payment: if pay === 'mock' show simulated success, else COD accepted
+      if(pay === 'mock'){
+        // simulate a (fake) payment process
+        if(!confirm('Simulate online payment success? Click OK to confirm payment.')){ return; }
+        order.paymentStatus = 'paid';
+      } else { order.paymentStatus = 'cod'; }
+
+      // Send to Google Sheet (best-effort)
+      const sheetResp = await sendOrderToSheet(order);
+      if(sheetResp && sheetResp.status === 'ok'){
+        // saved on sheet
+        console.log('Order saved to Google Sheet');
+      } else {
+        console.warn('Order not saved to sheet (still saved locally).');
+      }
+
+      // Save order list in localStorage for demo / admin view
+      const ORDERS_KEY = 'vs_shines_orders_v1';
+      const orders = JSON.parse(localStorage.getItem(ORDERS_KEY) || '[]');
+      orders.push(order);
+      localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
+
+      // Clear cart and close modal
+      cart = {}; saveCart();
+      $('checkoutModal').classList.remove('open');
+      drawer.classList.remove('open');
+
+      alert('Order placed! Order ID: ' + order.id + '\\nTotal: ' + formatINR(order.total));
+      // (Optional) show order summary or redirect to "thank you" page
+    };
+
+    // Init
+    renderProducts();
+    updateCartUI();
+    // keep UI in sync if localStorage changed elsewhere (rare)
+    window.addEventListener('storage', ()=>{ cart = JSON.parse(localStorage.getItem(CART_KEY) || '{}'); updateCartUI(); });
+
+    // Extra: press 'o' to open cart (dev)
+    window.addEventListener('keydown', e => { if(e.key === 'o') drawer.classList.toggle('open'); });
+  </script>
+</body>
+</html>
